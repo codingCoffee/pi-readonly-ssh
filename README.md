@@ -1,8 +1,10 @@
-# readonly-ssh
+# @codingcoffee/pi-readonly-ssh
 
 A [pi](https://github.com/mariozechner/pi) extension that exposes an `ssh_exec`
 tool to the LLM for running **allow-listed, read-only** commands on remote
 hosts over SSH.
+
+[![npm](https://img.shields.io/npm/v/@codingcoffee/pi-readonly-ssh.svg)](https://www.npmjs.com/package/@codingcoffee/pi-readonly-ssh)
 
 ## What it does
 
@@ -20,15 +22,84 @@ hosts over SSH.
 
 ## Install
 
-This extension lives at `.pi/extensions/readonly-ssh/` (project-local
-auto-discovery). Install its dependencies:
+### From npm (recommended)
+
+Install the extension globally into pi. This works on any machine with `pi`
+installed — you do **not** need `npm` or `node` on your PATH, because pi
+manages the package fetch and resolution internally.
 
 ```bash
-cd .pi/extensions/readonly-ssh
-npm install
+pi install npm:@codingcoffee/pi-readonly-ssh
 ```
 
-Start pi from the project root and the extension loads automatically.
+Verify:
+
+```bash
+pi list                    # should show @codingcoffee/pi-readonly-ssh
+pi                         # launch pi; look for "ro-ssh: N cmds, ..." in the footer
+```
+
+Inside pi, try `/ssh-allowed` and `/ssh-hosts`.
+
+#### Bun-only machines
+
+`pi install` shells out to `npm` for the fetch. If the target machine has Bun
+but no `npm`, point pi at Bun's bundled npm wrapper by adding this to
+`~/.pi/agent/settings.json`:
+
+```json
+{
+  "npmCommand": ["bun", "x", "--bun", "npm"]
+}
+```
+
+Then run `pi install npm:@codingcoffee/pi-readonly-ssh` as normal.
+
+### From git (no npm required)
+
+Pi clones the repo directly — no `npm` needed on the host:
+
+```bash
+pi install git:github.com/codingcoffee/pi-readonly-ssh
+# or pinned to a release tag:
+pi install git:github.com/codingcoffee/pi-readonly-ssh@v0.1.0
+```
+
+### Try without installing (ephemeral, one run only)
+
+```bash
+pi -e npm:@codingcoffee/pi-readonly-ssh
+# or from git:
+pi -e git:github.com/codingcoffee/pi-readonly-ssh
+```
+
+### Project-local install
+
+To install into the current project only (writes to `.pi/settings.json`,
+shareable via git — pi auto-installs on startup for teammates):
+
+```bash
+pi install -l npm:@codingcoffee/pi-readonly-ssh
+```
+
+### Uninstall
+
+```bash
+pi remove npm:@codingcoffee/pi-readonly-ssh
+# or, if installed from git:
+pi remove git:github.com/codingcoffee/pi-readonly-ssh
+```
+
+### Development (from source)
+
+Clone the repo and run directly:
+
+```bash
+git clone https://github.com/codingcoffee/pi-readonly-ssh.git
+cd pi-readonly-ssh
+bun install
+pi -e ./index.ts
+```
 
 ## Configure
 
