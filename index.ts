@@ -103,38 +103,59 @@ export default function (pi: ExtensionAPI) {
 		description: "List commands the readonly-ssh extension permits",
 		handler: async (_args, ctx) => {
 			const lines: string[] = [];
-			lines.push(`readonly-ssh allowlist (${config.path})`);
+			lines.push(`readonly-ssh allowlist  (${config.commands.length} commands)`);
+			lines.push(config.path);
 			lines.push("");
+			// Pad command names for alignment.
+			const nameWidth = Math.min(
+				16,
+				config.commands.reduce((w, c) => Math.max(w, c.name.length), 0),
+			);
 			for (const c of config.commands) {
-				let line = `  ${c.name}`;
-				if (c.subcommands?.length) line += ` [${c.subcommands.join("|")}]`;
-				if (c.banned_flags?.length) line += ` banned: ${c.banned_flags.join(" ")}`;
-				if (typeof c.max_args === "number") line += ` max_args=${c.max_args}`;
-				lines.push(line);
+				const parts: string[] = [];
+				if (c.subcommands?.length) parts.push(`sub: ${c.subcommands.join("|")}`);
+				if (c.banned_flags?.length) parts.push(`banned: ${c.banned_flags.join(" ")}`);
+				if (typeof c.max_args === "number") parts.push(`max_args=${c.max_args}`);
+				const name = c.name.padEnd(nameWidth);
+				lines.push(parts.length ? `  ${name}  ${parts.join("  ")}` : `  ${name}`);
 			}
-			ctx.ui.notify(`${config.commands.length} allowed commands — see console`, "info");
-			console.log(lines.join("\n"));
+			ctx.ui.notify(lines.join("\n"), "info");
 		},
 	});
 
 	pi.registerCommand("ssh-hosts", {
 		description: "List hosts the readonly-ssh extension may target",
 		handler: async (_args, ctx) => {
-			console.log(`readonly-ssh hosts (${config.path})`);
-			if (config.hosts.length > 0) {
-				for (const h of config.hosts) console.log(`  ${h.name}  ->  ${h.ssh}`);
+			const lines: string[] = [];
+			const hostCount = config.hosts.length;
+			const header = config.settings.allow_any_host
+				? `readonly-ssh hosts  (${hostCount} named + any allowed)`
+				: `readonly-ssh hosts  (${hostCount} host${hostCount === 1 ? "" : "s"})`;
+			lines.push(header);
+			lines.push(config.path);
+			lines.push("");
+
+			if (hostCount > 0) {
+				const nameWidth = config.hosts.reduce((w, h) => Math.max(w, h.name.length), 0);
+				lines.push("  Named hosts:");
+				for (const h of config.hosts) {
+					lines.push(`    • ${h.name.padEnd(nameWidth)}  →  ${h.ssh}`);
+				}
+				lines.push("");
 			} else {
-				console.log("  (no named hosts configured)");
+				lines.push("  (no named hosts configured)");
+				lines.push("");
 			}
+
 			if (config.settings.allow_any_host) {
-				console.log("\n  allow_any_host=true: any ssh target (user@host / alias) is accepted.");
+				lines.push("  allow_any_host = true");
+				lines.push("    → any ssh target (user@host, host, or ~/.ssh/config alias) is accepted.");
 			} else {
-				console.log("\n  allow_any_host=false: only the names above are accepted.");
+				lines.push("  allow_any_host = false");
+				lines.push("    → only the named hosts above are accepted.");
 			}
-			const summary = config.settings.allow_any_host
-				? `${config.hosts.length} named host(s) + any allowed — see console`
-				: `${config.hosts.length} host(s) — see console`;
-			ctx.ui.notify(summary, "info");
+
+			ctx.ui.notify(lines.join("\n"), "info");
 		},
 	});
 
