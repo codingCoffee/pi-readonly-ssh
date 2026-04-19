@@ -19,9 +19,7 @@ import { readFileSync } from "node:fs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default function (pi: ExtensionAPI) {
-	const configPath = resolveConfigPath(__dirname);
-
-	// Seed default YAML (the one that ships with the extension) if missing.
+	// Load the bundled default so we can seed a user-editable copy on first run.
 	const defaultYamlPath = resolve(__dirname, "commands.yaml");
 	let defaultYaml = "";
 	try {
@@ -30,8 +28,13 @@ export default function (pi: ExtensionAPI) {
 		// If the bundled yaml is somehow missing (unlikely), fall back to a minimal one.
 		defaultYaml = "settings: {}\nhosts: []\ncommands: []\n";
 	}
-	ensureConfig(configPath, defaultYaml);
 
+	// Seed the XDG config path if no user-owned config exists yet. This returns
+	// the path that the user is expected to edit going forward — purely informational.
+	ensureConfig(__dirname, defaultYaml);
+
+	// Pick up whichever config file wins the priority chain right now.
+	let configPath = resolveConfigPath(__dirname);
 	let config: Config = loadConfig(configPath);
 	let savedActiveTools: string[] | null = null;
 
@@ -163,6 +166,9 @@ export default function (pi: ExtensionAPI) {
 		description: "Re-read the readonly-ssh YAML allowlist",
 		handler: async (_args, ctx) => {
 			try {
+				// Re-resolve in case the user just created a higher-priority file
+				// (e.g. a new ./.pi/readonly-ssh/commands.yaml).
+				configPath = resolveConfigPath(__dirname);
 				config = loadConfig(configPath);
 			} catch (e) {
 				ctx.ui.notify(`readonly-ssh: reload failed: ${(e as Error).message}`, "error");

@@ -103,7 +103,27 @@ pi -e ./index.ts
 
 ## Configure
 
-Edit `commands.yaml` next to this README:
+### Where does `commands.yaml` live?
+
+On first run the extension seeds an editable copy at
+`$XDG_CONFIG_HOME/pi-readonly-ssh/commands.yaml` (defaults to
+`~/.config/pi-readonly-ssh/commands.yaml`). Edit that file — upgrades via
+`pi install` will never overwrite it because it lives outside the package.
+
+At load time (and on every `/ssh-reload`) these paths are checked in order;
+**the first one that exists wins**:
+
+| # | Path | Purpose |
+|---|---|---|
+| 1 | `$READONLY_SSH_CONFIG` | Explicit override via env var. Highest priority. |
+| 2 | `./.pi/readonly-ssh/commands.yaml` | Project-local (CWD-relative). Check into git to share with your team. |
+| 3 | `$XDG_CONFIG_HOME/pi-readonly-ssh/commands.yaml` | Per-user global. Auto-seeded from the bundled default on first run. Falls back to `~/.config/...` if `$XDG_CONFIG_HOME` is unset. |
+| 4 | `<installed-package>/commands.yaml` | Bundled default shipped inside the npm tarball. Read-only — treat as a template. |
+
+The active path is printed in the header of `/ssh-allowed` and `/ssh-hosts`
+so you can always tell which file is in effect.
+
+### What goes in `commands.yaml`
 
 ```yaml
 settings:
@@ -126,7 +146,9 @@ commands:
   # ...
 ```
 
-After edits: `/ssh-reload` in pi (no restart needed).
+After edits: `/ssh-reload` in pi (no restart needed). `/ssh-reload` also
+re-runs the priority chain — so if you just created a new project-local
+`./.pi/readonly-ssh/commands.yaml`, it will be picked up without restarting.
 
 ## Slash commands
 

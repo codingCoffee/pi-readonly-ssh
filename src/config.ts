@@ -51,15 +51,50 @@ function expandHome(p: string | null | undefined): string | null {
 }
 
 /**
- * Resolve which commands.yaml to use.
- * Priority: project `.pi/extensions/readonly-ssh/commands.yaml`
- *           -> global `~/.pi/agent/extensions/readonly-ssh/commands.yaml`
+ * Candidate config paths in priority order (first hit wins).
  *
- * The caller (extension entry) passes both candidate dirs (via import.meta.dirname
- * of wherever the extension itself was loaded from). We keep logic simple: just
- * use a single path next to index.ts. pi auto-discovery already scopes that.
+ * 1. $READONLY_SSH_CONFIG                             (explicit override)
+ * 2. ./.pi/readonly-ssh/commands.yaml                 (project-local, CWD-relative)
+ * 3. $XDG_CONFIG_HOME/pi-readonly-ssh/commands.yaml   (per-user, fallback ~/.config/...)
+ * 4. <extensionDir>/commands.yaml                     (bundled default shipped in the npm tarball)
+ *
+ * If none of 1–3 exist on first run, the bundled default is copied to the
+ * XDG path (3) so the user has an editable copy at a known-good location.
+ */
+export function getCandidateConfigPaths(extensionDir: string): string[] {
+	const candidates: string[] = [];
+
+	const envPath = process.env.READONLY_SSH_CONFIG;
+	if (envPath && envPath.trim().length > 0) {
+		candidates.push(resolve(expandHome(envPath) ?? envPath));
+	}
+
+	candidates.push(resolve(process.cwd(), ".pi", "readonly-ssh", "commands.yaml"));
+
+	candidates.push(resolve(xdgConfigHome(), "pi-readonly-ssh", "commands.yaml"));
+
+	candidates.push(resolve(extensionDir, "commands.yaml"));
+
+	return candidates;
+}
+
+function xdgConfigHome(): string {
+	const x = process.env.XDG_CONFIG_HOME;
+	if (x && x.trim().length > 0) return x;
+	return resolve(homedir(), ".config");
+}
+
+/**
+ * Resolve which commands.yaml to actually read. Returns the first candidate
+ * that exists on disk. Falls back to the bundled default, which is guaranteed
+ * to exist because it ships in the npm tarball.
  */
 export function resolveConfigPath(extensionDir: string): string {
+	for (const p of getCandidateConfigPaths(extensionDir)) {
+		if (existsSync(p)) return p;
+	}
+	// Unreachable in practice — the bundled default always exists. Keep a
+	// sensible fallback anyway.
 	return resolve(extensionDir, "commands.yaml");
 }
 
@@ -107,9 +142,35 @@ export function loadConfig(configPath: string): Config {
 	return { settings, hosts, commands, path: configPath };
 }
 
-/** Write a fresh default config if one doesn't already exist. */
-export function ensureConfig(configPath: string, defaultYaml: string): void {
-	if (existsSync(configPath)) return;
-	mkdirSync(dirname(configPath), { recursive: true });
-	writeFileSync(configPath, defaultYaml, "utf8");
+/**
+ * If no user-owned config exists (env, project-local, or XDG), seed the XDG
+ * path from the bundled default so the user has an editable copy at a
+ * predictable location. The bundled file (shipped inside the installed
+ * package) is NEVER written to.
+ *
+ * Returns the path that will be used after seeding (for logging).
+ */
+export function ensureConfig(extensionDir: string, defaultYaml: string): string {
+	const [envPath, projectPath, xdgPath] = [
+		process.env.READONLY_SSH_CONFIG?.trim()
+			? resolve(expandHome(process.env.READONLY_SSH_CONFIG) ?? process.env.READONLY_SSH_CONFIG)
+			: null,
+		resolve(process.cwd(), ".pi", "readonly-ssh", "commands.yaml"),
+		resolve(xdgConfigHome(), "pi-readonly-ssh", "commands.yaml"),
+	];
+
+	if (envPath && existsSync(envPath)) return envPath;
+	if (existsSync(projectPath)) return projectPath;
+	if (existsSync(xdgPath)) return xdgPath;
+
+	// Nothing user-owned exists — seed the XDG location.
+	try {
+		mkdirSync(dirname(xdgPath), { recursive: true });
+		writeFileSync(xdgPath, defaultYaml, "utf8");
+		return xdgPath;
+	} catch {
+		// If we can't write (read-only FS, permissions), fall back to the
+		// bundled default. The extension still works — just non-editable.
+		return resolve(extensionDir, "commands.yaml");
+	}
 }
