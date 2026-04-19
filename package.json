@@ -1,15 +1,56 @@
 {
-  "name": "readonly-ssh",
+  "name": "@codingcoffee/pi-readonly-ssh",
   "version": "0.1.0",
-  "description": "pi extension: run allow-listed read-only commands on remote hosts via SSH",
-  "private": true,
+  "description": "pi extension: expose an ssh_exec tool to the LLM for running allow-listed, read-only commands on remote hosts over SSH",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi",
+    "ssh",
+    "readonly",
+    "allowlist",
+    "llm-tools",
+    "remote-diagnostics"
+  ],
+  "license": "MIT",
+  "author": "Ameya Shenoy",
+  "homepage": "https://github.com/codingcoffee/pi-readonly-ssh#readme",
+  "bugs": {
+    "url": "https://github.com/codingcoffee/pi-readonly-ssh/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codingcoffee/pi-readonly-ssh.git"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "index.ts",
+    "src/**/*.ts",
+    "commands.yaml",
+    "README.md",
+    "LICENSE"
+  ],
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
   "dependencies": {
-    "@mariozechner/pi-tui": "^0.67.68",
-    "@sinclair/typebox": "^0.34.49",
     "shell-quote": "^1.8.1",
     "yaml": "^2.5.1"
   },
-  "pi": {
-    "extensions": ["./index.ts"]
+  "peerDependencies": {
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  },
+  "devDependencies": {
+    "@mariozechner/pi-coding-agent": "^0.67.0",
+    "@mariozechner/pi-tui": "^0.67.68",
+    "@sinclair/typebox": "^0.34.49"
+  },
+  "scripts": {
+    "selftest": "bun run run-selftest.ts",
+    "prepublishOnly": "bun run run-selftest.ts"
   }
 }

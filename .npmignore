@@ -1,0 +1,14 @@
+# Dev-only files — `files` in package.json already allowlists what ships,
+# but keep this as a belt-and-suspenders for anyone who publishes without it.
+node_modules/
+bun.lock
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+.git/
+.github/
+.vscode/
+.idea/
+run-selftest.ts
+*.log
+.DS_Store
