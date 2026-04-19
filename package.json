@@ -4,6 +4,7 @@
   "description": "pi extension: run allow-listed read-only commands on remote hosts via SSH",
   "private": true,
   "dependencies": {
+    "@sinclair/typebox": "^0.34.49",
     "shell-quote": "^1.8.1",
     "yaml": "^2.5.1"
   },
