@@ -1,9 +1,21 @@
 import { Type } from "@sinclair/typebox";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { Text } from "@mariozechner/pi-tui";
 import { auditLog } from "./audit.js";
 import type { Config } from "./config.js";
 import { runSsh } from "./ssh.js";
 import { validateCommand } from "./validator.js";
+
+interface SshExecDetails {
+	host?: string;
+	command?: string;
+	exitCode?: number;
+	durationMs?: number;
+	truncated?: boolean;
+	timedOut?: boolean;
+	rejected?: boolean;
+	reason?: string;
+}
 
 export function registerSshExecTool(pi: ExtensionAPI, getConfig: () => Config) {
 	pi.registerTool({
@@ -23,6 +35,41 @@ export function registerSshExecTool(pi: ExtensionAPI, getConfig: () => Config) {
 			"The 'host' argument must be one of the aliases configured in the readonly-ssh allowlist.",
 			"If a command is rejected, read the error, pick a different allow-listed command, or ask the user to add it to commands.yaml.",
 		],
+		renderCall(args, theme, _context) {
+			const host = typeof args?.host === "string" ? args.host : "";
+			const command = typeof args?.command === "string" ? args.command : "";
+			let text = theme.fg("toolTitle", theme.bold("ssh "));
+			if (host) text += theme.fg("accent", host);
+			if (command) {
+				const shown = command.length > 120 ? `${command.slice(0, 117)}...` : command;
+				text += theme.fg("dim", "  $ ");
+				text += shown;
+			}
+			if (typeof args?.timeout_sec === "number") {
+				text += theme.fg("dim", ` (timeout: ${args.timeout_sec}s)`);
+			}
+			return new Text(text, 0, 0);
+		},
+
+		renderResult(result, { isPartial }, theme, _context) {
+			if (isPartial) return new Text(theme.fg("warning", "Running..."), 0, 0);
+
+			const details = result.details as SshExecDetails | undefined;
+			const content = result.content[0];
+			const output = content?.type === "text" ? content.text : "";
+
+			// Rejected commands: show the full rejection message as-is.
+			if (details?.rejected) {
+				return new Text(theme.fg("error", output), 0, 0);
+			}
+
+			// Strip the first line of the text payload (`[host] command`),
+			// since the renderCall header already shows host + command.
+			const lines = output.split("\n");
+			if (lines[0]?.startsWith("[")) lines.shift();
+			return new Text(lines.join("\n"), 0, 0);
+		},
+
 		parameters: Type.Object({
 			host: Type.String({
 				description:
