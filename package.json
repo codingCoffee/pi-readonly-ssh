@@ -1,0 +1,13 @@
+{
+  "name": "readonly-ssh",
+  "version": "0.1.0",
+  "description": "pi extension: run allow-listed read-only commands on remote hosts via SSH",
+  "private": true,
+  "dependencies": {
+    "shell-quote": "^1.8.1",
+    "yaml": "^2.5.1"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  }
+}

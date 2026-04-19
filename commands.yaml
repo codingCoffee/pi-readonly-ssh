@@ -1,0 +1,319 @@
+# readonly-ssh allowlist
+# Edit this file to add/remove allowed commands.
+# After editing, run /ssh-reload in pi (or restart).
+
+settings:
+  # If true, disables the built-in `bash` tool while this extension is active.
+  # Useful when you want the LLM to ONLY touch remote machines.
+  strict_mode: false
+
+  # Hard cap on combined stdout+stderr bytes returned to the LLM. Excess is truncated.
+  max_output_bytes: 1048576   # 1 MiB
+
+  # Kill the ssh child after this many seconds if it hasn't exited.
+  default_timeout_sec: 30
+
+  # Allow tokens containing glob/brace/tilde characters (*, ?, {...}, ~).
+  # Safe to allow because every argv token is single-quoted before being sent
+  # to the remote shell, so globs are never expanded by the shell; tools like
+  # `find -name '*.log'` still use them as their own patterns. Set to false
+  # if you want to force the LLM to enumerate paths explicitly anyway.
+  allow_globs: true
+
+  # Append one line per executed command to this file. Set to null to disable.
+  audit_log: ~/.pi/readonly-ssh.log
+
+# Hosts the LLM may target. The `name` is what gets passed as the `host` argument.
+# `ssh` is the actual argument given to the ssh binary (can be an alias from ~/.ssh/config).
+hosts: []
+  # - name: prod-web-1
+  #   ssh: deploy@prod-web-1.example.com
+  # - name: staging
+  #   ssh: staging
+
+# Allowed commands. Matched on the basename of argv[0].
+#
+# Per-entry options:
+#   subcommands:       if set, argv[1] must be one of these
+#   banned_flags:      any token matching one of these (exact match) is rejected
+#   banned_args_regex: any token matching one of these regexes is rejected
+#   max_args:          max argv length (including the command itself)
+#   allow_globs:       override the global allow_globs setting for this command
+commands:
+  # --- File inspection ---
+  - name: ls
+  - name: cat
+  - name: head
+  - name: tail
+    banned_flags: ["-f", "-F", "--follow", "--retry"]
+  - name: less
+    banned_flags: ["+F"]
+  - name: more
+  - name: wc
+  - name: stat
+  - name: file
+  - name: readlink
+  - name: realpath
+  - name: basename
+  - name: dirname
+  - name: tree
+    banned_flags: ["-o"]
+  - name: md5sum
+  - name: sha1sum
+  - name: sha256sum
+  - name: sha512sum
+  - name: cksum
+  - name: diff
+  - name: cmp
+  - name: od
+  - name: xxd
+    banned_flags: ["-r"]
+  - name: strings
+
+  # --- Search ---
+  - name: grep
+    banned_flags: ["-Z", "--null"]
+  - name: egrep
+  - name: fgrep
+  - name: rg
+    banned_flags: ["--files-with-matches-and-cmd"]
+  - name: ag
+  - name: find
+    banned_flags:
+      - "-delete"
+      - "-exec"
+      - "-execdir"
+      - "-ok"
+      - "-okdir"
+      - "-fprint"
+      - "-fprint0"
+      - "-fprintf"
+      - "-fls"
+  - name: locate
+  - name: which
+  - name: whereis
+  - name: type
+
+  # --- System / process ---
+  - name: ps
+  - name: pstree
+  - name: top
+    banned_flags: ["-c"]
+  - name: htop
+  - name: uptime
+  - name: whoami
+  - name: id
+  - name: groups
+  - name: w
+  - name: who
+  - name: last
+  - name: lastlog
+  - name: users
+  - name: hostname
+    banned_flags: ["-b", "-F", "--file"]
+  - name: hostnamectl
+    subcommands: [status]
+  - name: uname
+  - name: lsb_release
+  - name: date
+    banned_flags: ["-s", "--set"]
+  - name: cal
+  - name: env
+    # `env` as a no-arg info command is fine; but `env VAR=x cmd ...` is a prefix we
+    # do NOT support (would require recursive validation of the following argv).
+    # To keep the guard simple, reject any argv with '=' or extra commands.
+    banned_args_regex: ["="]
+    max_args: 1
+  - name: printenv
+  - name: lscpu
+  - name: lsmem
+  - name: lsblk
+  - name: lspci
+  - name: lsusb
+  - name: lsof
+    banned_flags: ["-T"]
+  - name: dmesg
+    banned_flags: ["-C", "--clear", "-c", "--read-clear", "-w", "--follow", "-W"]
+  - name: free
+  - name: vmstat
+  - name: iostat
+  - name: mpstat
+  - name: sar
+  - name: nproc
+
+  # --- Disk ---
+  - name: df
+  - name: du
+  - name: mount
+    # plain `mount` with no args just lists. Reject any args to prevent mounting.
+    max_args: 1
+
+  # --- Network ---
+  - name: ip
+    subcommands: [addr, a, link, l, route, r, neigh, n, rule, maddr, tunnel]
+  - name: ifconfig
+  - name: ss
+  - name: netstat
+  - name: route
+  - name: arp
+  - name: dig
+    banned_flags: ["-f"]
+  - name: host
+  - name: nslookup
+  - name: getent
+  - name: ping
+    banned_flags: ["-f", "--flood"]
+    max_args: 6
+  - name: ping6
+    banned_flags: ["-f"]
+    max_args: 6
+  - name: traceroute
+    max_args: 6
+  - name: tracepath
+    max_args: 4
+  - name: mtr
+    banned_flags: ["-r", "--report", "-C", "--csv"]
+    max_args: 4
+
+  # --- Services / logs ---
+  - name: systemctl
+    subcommands:
+      - status
+      - is-active
+      - is-enabled
+      - is-failed
+      - is-system-running
+      - show
+      - show-environment
+      - list-units
+      - list-unit-files
+      - list-timers
+      - list-sockets
+      - list-jobs
+      - list-dependencies
+      - list-machines
+      - cat
+      - get-default
+      - help
+  - name: journalctl
+    banned_flags:
+      - "-f"
+      - "--follow"
+      - "--flush"
+      - "--rotate"
+      - "--vacuum-size"
+      - "--vacuum-time"
+      - "--vacuum-files"
+      - "--sync"
+  - name: service
+    # `service nginx status` style; verb must be read-only
+    banned_args_regex: ["^(start|stop|restart|reload|force-reload|enable|disable)$"]
+
+  # --- Containers / orchestration ---
+  - name: docker
+    subcommands:
+      - ps
+      - images
+      - image
+      - logs
+      - inspect
+      - top
+      - stats
+      - version
+      - info
+      - port
+      - diff
+      - history
+      - network
+      - volume
+      - container
+      - system
+      - context
+    banned_flags: ["-f", "--follow"]
+    banned_args_regex: ["^(rm|rmi|kill|stop|start|restart|pause|unpause|exec|run|build|push|pull|commit|save|load|tag|prune|create|cp|attach|wait|update|rename)$"]
+  - name: podman
+    subcommands: [ps, images, logs, inspect, top, stats, version, info, port, diff, history]
+    banned_flags: ["-f", "--follow"]
+  - name: kubectl
+    subcommands:
+      - get
+      - describe
+      - logs
+      - top
+      - version
+      - cluster-info
+      - api-resources
+      - api-versions
+      - explain
+      - config
+      - auth
+      - events
+    banned_flags: ["-f", "--follow", "-w", "--watch", "--watch-only"]
+    banned_args_regex: ["^(delete|apply|create|replace|patch|edit|scale|rollout|exec|cp|drain|cordon|uncordon|taint|label|annotate|expose|run|attach|proxy|port-forward|set)$"]
+  - name: helm
+    subcommands: [list, ls, status, get, history, show, search, version, env, repo]
+    banned_args_regex: ["^(install|upgrade|uninstall|delete|rollback|package|push|create|pull|template|dependency|plugin)$"]
+
+  # --- VCS ---
+  - name: git
+    subcommands:
+      - status
+      - log
+      - diff
+      - show
+      - branch
+      - remote
+      - config
+      - blame
+      - ls-files
+      - ls-tree
+      - rev-parse
+      - rev-list
+      - describe
+      - tag
+      - reflog
+      - shortlog
+      - whatchanged
+      - grep
+      - cat-file
+      - count-objects
+      - for-each-ref
+      - name-rev
+      - merge-base
+      - symbolic-ref
+      # NOTE: `tag` and `stash` are deliberately omitted because their
+      # write forms (tag creation, stash push) would pass the flag check.
+    # Block modifying forms of subcommands that are otherwise read-only.
+    banned_flags:
+      - "--edit"
+      - "-e"
+      - "--amend"
+      - "-d"
+      - "-D"
+      - "--delete"
+      - "--move"
+      - "-m"
+      - "--unset"
+      - "--unset-all"
+      - "--add"
+      - "--replace-all"
+      - "--rename-section"
+      - "--remove-section"
+    banned_args_regex: ["^--exec=", "^--upload-pack="]
+
+  # --- sudo (special: recursively validated) ---
+  - name: sudo
+    banned_flags:
+      - "-s"
+      - "-i"
+      - "-E"
+      - "-H"
+      - "--shell"
+      - "--login"
+      - "--preserve-env"
+      - "-e"
+      - "--edit"
+      - "-b"
+      - "--background"
+      - "-A"
+      - "--askpass"
