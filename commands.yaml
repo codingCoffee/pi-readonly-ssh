@@ -5,7 +5,7 @@
 settings:
   # If true, disables the built-in `bash` tool while this extension is active.
   # Useful when you want the LLM to ONLY touch remote machines.
-  strict_mode: false
+  strict_mode: true
 
   # Hard cap on combined stdout+stderr bytes returned to the LLM. Excess is truncated.
   max_output_bytes: 1048576   # 1 MiB
