@@ -260,6 +260,35 @@ commands:
   - name: helm
     subcommands: [list, ls, status, get, history, show, search, version, env, repo]
     banned_args_regex: ["^(install|upgrade|uninstall|delete|rollback|package|push|create|pull|template|dependency|plugin)$"]
+  - name: nomad
+    # Read-only Nomad CLI usage only. Second-level verbs that mutate cluster
+    # state are blocked via banned_args_regex below. Subcommands that exist
+    # ONLY to write (e.g. `nomad run`, `nomad stop`, `nomad acl bootstrap`,
+    # `nomad ui`, `nomad monitor`, `nomad var put`) are omitted entirely.
+    subcommands:
+      - status          # top-level read
+      - version
+      - agent-info
+      - node            # status/config (drain/eligibility blocked)
+      - job             # status/inspect/history/allocs/deployments/evaluations (run/stop/revert/dispatch/... blocked)
+      - alloc           # status/logs/fs (exec/restart/signal/stop blocked)
+      - eval            # status/list (delete blocked)
+      - deployment      # status/list (pause/resume/fail/promote/unblock blocked)
+      - server          # members (join/force-leave blocked)
+      - namespace       # status/list/inspect (apply/delete blocked)
+      - quota           # status/list/inspect (apply/delete/init blocked)
+      - scaling         # policy list/info
+      - volume          # status (register/deregister/create/delete/detach/snapshot blocked)
+      - plugin          # status
+      - service         # list/info (delete blocked)
+    banned_flags:
+      - "-f"
+      - "--follow"
+      - "-t"
+      - "--tail"
+    banned_args_regex:
+      # Block any mutating second-level verb anywhere in argv.
+      - "^(run|stop|purge|restart|revert|plan|dispatch|promote|pause|resume|fail|unblock|force-gc|gc|force-leave|join|leave|drain|eligibility|apply|delete|create|init|write|put|register|deregister|detach|snapshot|signal|exec|bootstrap|update|rotate|upgrade|lock|unlock|scale)$"
 
   # --- VCS ---
   - name: git
