@@ -39,7 +39,8 @@ settings:
   strict_mode: false          # true = disable built-in `bash` tool
   max_output_bytes: 1048576
   default_timeout_sec: 30
-  allow_globs: false
+  allow_globs: true
+  allow_any_host: false       # true = let the LLM target any ssh host
   audit_log: ~/.pi/readonly-ssh.log
 
 hosts:
@@ -100,7 +101,7 @@ What this extension **does** prevent:
   delete` is rejected even though `kubectl get` is fine).
 - Dangerous flags on otherwise-safe tools (`find -delete`, `tail -f`,
   `journalctl -f`, `curl -X POST`, etc.).
-- Targeting hosts not in the allowlist.
+- Targeting hosts not in the allowlist (when `allow_any_host: false`).
 - Unbounded output size or runtime.
 - The LLM passing `@`-prefixed commands.
 

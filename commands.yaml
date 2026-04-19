@@ -23,6 +23,13 @@ settings:
   # Append one line per executed command to this file. Set to null to disable.
   audit_log: ~/.pi/readonly-ssh.log
 
+  # If true, the `host` argument passed by the LLM is used directly as the ssh
+  # target (user@host, or an alias from ~/.ssh/config) WITHOUT consulting the
+  # `hosts:` list below. Entries in `hosts:` still work as named shortcuts.
+  # Set to false for strict host allowlisting (only names in `hosts:` are
+  # accepted). Default: false.
+  allow_any_host: true
+
 # Hosts the LLM may target. The `name` is what gets passed as the `host` argument.
 # `ssh` is the actual argument given to the ssh binary (can be an alias from ~/.ssh/config).
 hosts: []

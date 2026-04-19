@@ -69,15 +69,18 @@ export default function (pi: ExtensionAPI) {
 
 		const hostCount = config.hosts.length;
 		const cmdCount = config.commands.length;
+		const hostBadge = config.settings.allow_any_host
+			? `${hostCount} named + any`
+			: `${hostCount} host${hostCount === 1 ? "" : "s"}`;
 		ctx.ui.setStatus(
 			"readonly-ssh",
 			ctx.ui.theme.fg(
 				"accent",
-				`ro-ssh: ${cmdCount} cmds, ${hostCount} host${hostCount === 1 ? "" : "s"}${config.settings.strict_mode ? " [strict]" : ""}`,
+				`ro-ssh: ${cmdCount} cmds, ${hostBadge}${config.settings.strict_mode ? " [strict]" : ""}`,
 			),
 		);
 
-		if (hostCount === 0) {
+		if (hostCount === 0 && !config.settings.allow_any_host) {
 			ctx.ui.notify(
 				`readonly-ssh: no hosts configured. Edit ${configPath} and run /ssh-reload.`,
 				"warning",
@@ -117,14 +120,21 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("ssh-hosts", {
 		description: "List hosts the readonly-ssh extension may target",
 		handler: async (_args, ctx) => {
-			if (config.hosts.length === 0) {
-				ctx.ui.notify(`No hosts configured. Edit ${config.path} and run /ssh-reload.`, "warning");
-				return;
-			}
-			const lines = config.hosts.map((h) => `  ${h.name}  ->  ${h.ssh}`);
 			console.log(`readonly-ssh hosts (${config.path})`);
-			console.log(lines.join("\n"));
-			ctx.ui.notify(`${config.hosts.length} host(s) — see console`, "info");
+			if (config.hosts.length > 0) {
+				for (const h of config.hosts) console.log(`  ${h.name}  ->  ${h.ssh}`);
+			} else {
+				console.log("  (no named hosts configured)");
+			}
+			if (config.settings.allow_any_host) {
+				console.log("\n  allow_any_host=true: any ssh target (user@host / alias) is accepted.");
+			} else {
+				console.log("\n  allow_any_host=false: only the names above are accepted.");
+			}
+			const summary = config.settings.allow_any_host
+				? `${config.hosts.length} named host(s) + any allowed — see console`
+				: `${config.hosts.length} host(s) — see console`;
+			ctx.ui.notify(summary, "info");
 		},
 	});
 
@@ -139,11 +149,14 @@ export default function (pi: ExtensionAPI) {
 			}
 			const failures = runSelfTests(config);
 			applyStrictMode();
+			const badge = config.settings.allow_any_host
+				? `${config.hosts.length} named + any`
+				: `${config.hosts.length} hosts`;
 			ctx.ui.setStatus(
 				"readonly-ssh",
 				ctx.ui.theme.fg(
 					"accent",
-					`ro-ssh: ${config.commands.length} cmds, ${config.hosts.length} hosts${config.settings.strict_mode ? " [strict]" : ""}`,
+					`ro-ssh: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""}`,
 				),
 			);
 			if (failures.length > 0) {

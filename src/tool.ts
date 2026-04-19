@@ -25,7 +25,10 @@ export function registerSshExecTool(pi: ExtensionAPI, getConfig: () => Config) {
 		],
 		parameters: Type.Object({
 			host: Type.String({
-				description: "Host alias from the readonly-ssh allowlist (see /ssh-hosts).",
+				description:
+					"Host to target. Either a named alias from the readonly-ssh allowlist " +
+					"(see /ssh-hosts), or — if settings.allow_any_host is true — any ssh " +
+					"target string (user@host, host, or an alias from ~/.ssh/config).",
 			}),
 			command: Type.String({
 				description:
@@ -38,11 +41,50 @@ export function registerSshExecTool(pi: ExtensionAPI, getConfig: () => Config) {
 		async execute(_toolCallId, params, signal, _onUpdate, _ctx) {
 			const cfg = getConfig();
 
-			// Resolve host
+			// Resolve host. Named aliases from `hosts:` always win. If the input
+			// doesn't match a named alias and `allow_any_host` is enabled, fall back
+			// to treating the input as a raw ssh target.
 			const hostEntry = cfg.hosts.find((h) => h.name === params.host);
-			if (!hostEntry) {
+			let sshTarget: string;
+			if (hostEntry) {
+				sshTarget = hostEntry.ssh;
+			} else if (cfg.settings.allow_any_host) {
+				// Basic sanity: reject whitespace/metacharacters that could smuggle ssh
+				// options. Allow common chars for user@host, IPv6 in brackets, and ports.
+				if (!/^[A-Za-z0-9._@:\-\[\]]+$/.test(params.host)) {
+					const reason = `host '${params.host}' contains disallowed characters`;
+					auditLog(cfg.settings.audit_log, {
+						host: params.host,
+						command: params.command,
+						ok: false,
+						reason,
+					});
+					return {
+						content: [{ type: "text", text: `REJECTED: ${reason}` }],
+						details: { rejected: true, reason },
+						isError: true,
+					};
+				}
+				if (params.host.startsWith("-")) {
+					const reason = `host '${params.host}' must not start with '-'`;
+					auditLog(cfg.settings.audit_log, {
+						host: params.host,
+						command: params.command,
+						ok: false,
+						reason,
+					});
+					return {
+						content: [{ type: "text", text: `REJECTED: ${reason}` }],
+						details: { rejected: true, reason },
+						isError: true,
+					};
+				}
+				sshTarget = params.host;
+			} else {
 				const available = cfg.hosts.map((h) => h.name).join(", ") || "(none configured)";
-				const reason = `host '${params.host}' is not in the allowlist. Available: ${available}`;
+				const reason =
+					`host '${params.host}' is not in the allowlist. Available: ${available}. ` +
+					`Set settings.allow_any_host: true in commands.yaml to permit arbitrary hosts.`;
 				auditLog(cfg.settings.audit_log, {
 					host: params.host,
 					command: params.command,
@@ -86,7 +128,7 @@ export function registerSshExecTool(pi: ExtensionAPI, getConfig: () => Config) {
 					: cfg.settings.default_timeout_sec;
 
 			const result = await runSsh({
-				host: hostEntry.ssh,
+				host: sshTarget,
 				argv: v.argv,
 				timeoutSec,
 				maxBytes: cfg.settings.max_output_bytes,

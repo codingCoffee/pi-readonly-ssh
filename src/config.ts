@@ -23,6 +23,7 @@ export interface Settings {
 	default_timeout_sec: number;
 	allow_globs: boolean;
 	audit_log: string | null;
+	allow_any_host: boolean;
 }
 
 export interface Config {
@@ -39,6 +40,7 @@ const DEFAULT_SETTINGS: Settings = {
 	default_timeout_sec: 30,
 	allow_globs: true,
 	audit_log: null,
+	allow_any_host: false,
 };
 
 function expandHome(p: string | null | undefined): string | null {
