@@ -6,6 +6,23 @@ hosts over SSH.
 
 [![npm](https://img.shields.io/npm/v/@codingcoffee/pi-readonly-ssh.svg)](https://www.npmjs.com/package/@codingcoffee/pi-readonly-ssh)
 
+> ## ⚠️  Heads up: this extension disables the built-in `bash` tool by default
+>
+> The shipped `commands.yaml` sets `settings.strict_mode: true`, which
+> removes pi's built-in `bash` tool from the active toolset while this
+> extension is loaded. **This is intentional and is the whole point of the
+> extension.**
+>
+> Without strict mode, the LLM could trivially bypass every safeguard here by
+> just calling `bash` with `ssh user@host '<whatever>'` — every allowlist,
+> every regex, every host gate would be meaningless. If you want `ssh_exec`
+> to mean anything at all, the bash tool has to go.
+>
+> If you **don't** want this behaviour (e.g. you're fine with the LLM running
+> arbitrary shell commands locally and only want `ssh_exec` as a convenience
+> wrapper), set `settings.strict_mode: false` in your `commands.yaml` and
+> run `/ssh-reload`. The built-in `bash` tool will be restored.
+
 ## What it does
 
 - Registers a new tool `ssh_exec(host, command, timeout_sec?)`.
