@@ -315,7 +315,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <span class="eyebrow"><span class="dot"></span>pi extension · v0.2.0 · MIT</span>
+    <span class="eyebrow"><span class="dot"></span>pi extension · <span data-npm-version>v…</span> · MIT</span>
     <h1>Give your LLM an <span class="accent">ssh_exec</span> tool<br/>it <em>can't</em> misuse.</h1>
     <p class="sub">
       <b style="color:var(--fg)">pi-readonly-ssh</b> is a
@@ -478,7 +478,7 @@
 <pre><span class="k">pi</span> install git:github.com/codingcoffee/pi-readonly-ssh
 
 <span class="co"># or pinned to a release tag</span>
-<span class="k">pi</span> install git:github.com/codingcoffee/pi-readonly-ssh<span class="n">@v0.2.0</span>
+<span class="k">pi</span> install git:github.com/codingcoffee/pi-readonly-ssh<span class="n" data-npm-version-tag>@v…</span>
 
 <span class="co"># try without installing</span>
 <span class="k">pi</span> -e npm:@codingcoffee/pi-readonly-ssh</pre>
@@ -620,5 +620,30 @@
   </div>
 </footer>
 
+<script>
+  // Fetch the latest published version from the npm registry and splice it
+  // into any element tagged with [data-npm-version] / [data-npm-version-tag].
+  // Falls back silently to the placeholder if the request fails (offline,
+  // CSP, rate-limit, etc.) — the page stays readable either way.
+  (function () {
+    var PKG = "@codingcoffee/pi-readonly-ssh";
+    var URL = "https://registry.npmjs.org/" + PKG + "/latest";
+    try {
+      fetch(URL, { headers: { Accept: "application/json" } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j || !j.version) return;
+          var v = String(j.version);
+          document.querySelectorAll("[data-npm-version]").forEach(function (el) {
+            el.textContent = "v" + v;
+          });
+          document.querySelectorAll("[data-npm-version-tag]").forEach(function (el) {
+            el.textContent = "@v" + v;
+          });
+        })
+        .catch(function () { /* keep placeholder */ });
+    } catch (_) { /* keep placeholder */ }
+  })();
+</script>
 </body>
 </html>
