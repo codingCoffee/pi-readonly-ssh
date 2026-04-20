@@ -1,15 +1,28 @@
 # syntax=docker/dockerfile:1
-# Minimal static-site container for pi-readonly-ssh.codingcoffee.dev
+
+# ── Stage 1: rasterize SVG → PNG for social unfurls ─────────────────────────
+# Debian ships `rsvg-convert` reliably via librsvg2-bin; this stage is
+# discarded so the final image stays tiny.
+FROM debian:stable-slim AS ogbuild
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends librsvg2-bin \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY og.svg .
+# 1200×630 is the Open Graph / Twitter summary_large_image standard size.
+RUN rsvg-convert -w 1200 -h 630 -o og.png og.svg
+
+# ── Stage 2: static site served by nginx ────────────────────────────────────
 FROM nginx:1.29.8-alpine3.23
 
-# Drop the default nginx site and swap in our tiny config.
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Static assets.
 COPY index.html   /usr/share/nginx/html/index.html
 COPY robots.txt   /usr/share/nginx/html/robots.txt
 COPY sitemap.xml  /usr/share/nginx/html/sitemap.xml
+COPY og.svg       /usr/share/nginx/html/og.svg
+COPY --from=ogbuild /src/og.png /usr/share/nginx/html/og.png
 
 EXPOSE 80
 
