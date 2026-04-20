@@ -24,8 +24,20 @@ export default function (pi: ExtensionAPI) {
 	let configPath = resolveConfigPath(__dirname);
 	let config: Config = loadConfig(configPath);
 	let savedActiveTools: string[] | null = null;
+	let enabled = true;
 
-	const applyStrictMode = () => {
+	const applyToolState = () => {
+		if (!enabled) {
+			// Extension disabled: hide ssh_exec, and restore bash if strict mode
+			// had previously removed it.
+			if (savedActiveTools !== null) {
+				pi.setActiveTools(savedActiveTools.filter((n) => n !== "ssh_exec"));
+				savedActiveTools = null;
+			} else {
+				pi.setActiveTools(pi.getActiveTools().filter((n) => n !== "ssh_exec"));
+			}
+			return;
+		}
 		if (config.settings.strict_mode) {
 			if (savedActiveTools === null) {
 				savedActiveTools = pi.getActiveTools();
@@ -39,6 +51,7 @@ export default function (pi: ExtensionAPI) {
 			savedActiveTools = null;
 		}
 	};
+	const applyStrictMode = applyToolState;
 
 	registerSshExecTool(pi, () => config);
 
@@ -66,7 +79,7 @@ export default function (pi: ExtensionAPI) {
 			"readonly-ssh",
 			ctx.ui.theme.fg(
 				"accent",
-				`ro-ssh: ${cmdCount} cmds, ${hostBadge}${config.settings.strict_mode ? " [strict]" : ""}`,
+				`ro-ssh: ${cmdCount} cmds, ${hostBadge}${config.settings.strict_mode ? " [strict]" : ""}${enabled ? "" : " [off]"}`,
 			),
 		);
 
@@ -149,6 +162,51 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
+	pi.registerCommand("ssh-toggle", {
+		description: "Enable/disable the readonly-ssh extension at runtime (usage: /ssh-toggle [on|off])",
+		handler: async (args, ctx) => {
+			const arg = (Array.isArray(args) ? args[0] : args)?.toString().trim().toLowerCase();
+			let target: boolean;
+			if (arg === "on" || arg === "enable" || arg === "enabled" || arg === "true" || arg === "1") {
+				target = true;
+			} else if (arg === "off" || arg === "disable" || arg === "disabled" || arg === "false" || arg === "0") {
+				target = false;
+			} else if (!arg) {
+				target = !enabled;
+			} else {
+				ctx.ui.notify(`readonly-ssh: unknown argument '${arg}'. Use /ssh-toggle [on|off]`, "error");
+				return;
+			}
+			if (target === enabled) {
+				ctx.ui.notify(`readonly-ssh already ${enabled ? "enabled" : "disabled"}.`, "info");
+				return;
+			}
+			enabled = target;
+			applyToolState();
+			const badge = config.settings.allow_any_host
+				? `${config.hosts.length} named + any`
+				: `${config.hosts.length} hosts`;
+			ctx.ui.setStatus(
+				"readonly-ssh",
+				ctx.ui.theme.fg(
+					"accent",
+					`ro-ssh: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""}${enabled ? "" : " [off]"}`,
+				),
+			);
+			if (enabled) {
+				ctx.ui.notify(
+					`readonly-ssh enabled: ssh_exec is active${config.settings.strict_mode ? " and bash is disabled (strict mode)" : ""}.`,
+					"success",
+				);
+			} else {
+				ctx.ui.notify(
+					"readonly-ssh disabled: ssh_exec removed from active tools. bash restored if it was gated by strict mode.",
+					"warning",
+				);
+			}
+		},
+	});
+
 	pi.registerCommand("ssh-reload", {
 		description: "Re-read the readonly-ssh YAML allowlist",
 		handler: async (_args, ctx) => {
@@ -170,7 +228,7 @@ export default function (pi: ExtensionAPI) {
 				"readonly-ssh",
 				ctx.ui.theme.fg(
 					"accent",
-					`ro-ssh: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""}`,
+					`ro-ssh: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""}${enabled ? "" : " [off]"}`,
 				),
 			);
 			if (failures.length > 0) {
