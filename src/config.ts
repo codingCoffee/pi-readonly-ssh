@@ -1,6 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
 import YAML from "yaml";
 
 export interface CommandRule {
@@ -58,8 +58,8 @@ function expandHome(p: string | null | undefined): string | null {
  * 3. $XDG_CONFIG_HOME/pi-readonly-ssh/commands.yaml   (per-user, fallback ~/.config/...)
  * 4. <extensionDir>/commands.yaml                     (bundled default shipped in the npm tarball)
  *
- * If none of 1–3 exist on first run, the bundled default is copied to the
- * XDG path (3) so the user has an editable copy at a known-good location.
+ * If none of 1–3 exist, the bundled default at (4) is used read-only. Users
+ * who want to customize the policy create a file at (2) or (3) themselves.
  */
 export function getCandidateConfigPaths(extensionDir: string): string[] {
 	const candidates: string[] = [];
@@ -142,35 +142,4 @@ export function loadConfig(configPath: string): Config {
 	return { settings, hosts, commands, path: configPath };
 }
 
-/**
- * If no user-owned config exists (env, project-local, or XDG), seed the XDG
- * path from the bundled default so the user has an editable copy at a
- * predictable location. The bundled file (shipped inside the installed
- * package) is NEVER written to.
- *
- * Returns the path that will be used after seeding (for logging).
- */
-export function ensureConfig(extensionDir: string, defaultYaml: string): string {
-	const [envPath, projectPath, xdgPath] = [
-		process.env.READONLY_SSH_CONFIG?.trim()
-			? resolve(expandHome(process.env.READONLY_SSH_CONFIG) ?? process.env.READONLY_SSH_CONFIG)
-			: null,
-		resolve(process.cwd(), ".pi", "readonly-ssh", "commands.yaml"),
-		resolve(xdgConfigHome(), "pi-readonly-ssh", "commands.yaml"),
-	];
 
-	if (envPath && existsSync(envPath)) return envPath;
-	if (existsSync(projectPath)) return projectPath;
-	if (existsSync(xdgPath)) return xdgPath;
-
-	// Nothing user-owned exists — seed the XDG location.
-	try {
-		mkdirSync(dirname(xdgPath), { recursive: true });
-		writeFileSync(xdgPath, defaultYaml, "utf8");
-		return xdgPath;
-	} catch {
-		// If we can't write (read-only FS, permissions), fall back to the
-		// bundled default. The extension still works — just non-editable.
-		return resolve(extensionDir, "commands.yaml");
-	}
-}

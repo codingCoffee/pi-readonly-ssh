@@ -8,32 +8,19 @@
  * `/ssh-reload` to apply changes without restarting pi.
  */
 
-import { dirname, resolve } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import { ensureConfig, loadConfig, resolveConfigPath, type Config } from "./src/config.js";
+import { loadConfig, resolveConfigPath, type Config } from "./src/config.js";
 import { runSelfTests } from "./src/selftest.js";
 import { registerSshExecTool } from "./src/tool.js";
-import { readFileSync } from "node:fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default function (pi: ExtensionAPI) {
-	// Load the bundled default so we can seed a user-editable copy on first run.
-	const defaultYamlPath = resolve(__dirname, "commands.yaml");
-	let defaultYaml = "";
-	try {
-		defaultYaml = readFileSync(defaultYamlPath, "utf8");
-	} catch {
-		// If the bundled yaml is somehow missing (unlikely), fall back to a minimal one.
-		defaultYaml = "settings: {}\nhosts: []\ncommands: []\n";
-	}
-
-	// Seed the XDG config path if no user-owned config exists yet. This returns
-	// the path that the user is expected to edit going forward — purely informational.
-	ensureConfig(__dirname, defaultYaml);
-
-	// Pick up whichever config file wins the priority chain right now.
+	// Pick up whichever config file wins the priority chain. If the user has
+	// not created their own override, this falls through to the bundled default
+	// inside the installed package (read-only, but functional).
 	let configPath = resolveConfigPath(__dirname);
 	let config: Config = loadConfig(configPath);
 	let savedActiveTools: string[] | null = null;

@@ -10,5 +10,6 @@ yarn.lock
 .vscode/
 .idea/
 run-selftest.ts
+website/
 *.log
 .DS_Store
