@@ -73,13 +73,13 @@ export default function (pi: ExtensionAPI) {
 		const hostCount = config.hosts.length;
 		const cmdCount = config.commands.length;
 		const hostBadge = config.settings.allow_any_host
-			? `${hostCount} named + any`
+			? "all hosts"
 			: `${hostCount} host${hostCount === 1 ? "" : "s"}`;
 		ctx.ui.setStatus(
 			"readonly-ssh",
 			ctx.ui.theme.fg(
-				"accent",
-				`ro-ssh: ${cmdCount} cmds, ${hostBadge}${config.settings.strict_mode ? " [strict]" : ""}${enabled ? "" : " [off]"}`,
+				enabled ? "success" : "error",
+				`ssh-guard: ${cmdCount} cmds, ${hostBadge}${config.settings.strict_mode ? " [strict]" : ""} [${enabled ? "on" : "off"}]`,
 			),
 		);
 
@@ -184,13 +184,13 @@ export default function (pi: ExtensionAPI) {
 			enabled = target;
 			applyToolState();
 			const badge = config.settings.allow_any_host
-				? `${config.hosts.length} named + any`
-				: `${config.hosts.length} hosts`;
+				? "all hosts"
+				: `${config.hosts.length} host${config.hosts.length === 1 ? "" : "s"}`;
 			ctx.ui.setStatus(
 				"readonly-ssh",
 				ctx.ui.theme.fg(
-					"accent",
-					`ro-ssh: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""}${enabled ? "" : " [off]"}`,
+					enabled ? "success" : "error",
+					`ssh-guard: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""} [${enabled ? "on" : "off"}]`,
 				),
 			);
 			if (enabled) {
@@ -222,13 +222,13 @@ export default function (pi: ExtensionAPI) {
 			const failures = runSelfTests(config);
 			applyStrictMode();
 			const badge = config.settings.allow_any_host
-				? `${config.hosts.length} named + any`
-				: `${config.hosts.length} hosts`;
+				? "all hosts"
+				: `${config.hosts.length} host${config.hosts.length === 1 ? "" : "s"}`;
 			ctx.ui.setStatus(
 				"readonly-ssh",
 				ctx.ui.theme.fg(
-					"accent",
-					`ro-ssh: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""}${enabled ? "" : " [off]"}`,
+					enabled ? "success" : "error",
+					`ssh-guard: ${config.commands.length} cmds, ${badge}${config.settings.strict_mode ? " [strict]" : ""} [${enabled ? "on" : "off"}]`,
 				),
 			);
 			if (failures.length > 0) {
