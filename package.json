@@ -1,6 +1,6 @@
 {
   "name": "@codingcoffee/pi-readonly-ssh",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "a pi extension for safely running allow-listed, read-only commands on remote hosts over SSH",
   "keywords": [
     "pi-package",
