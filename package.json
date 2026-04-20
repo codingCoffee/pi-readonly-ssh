@@ -1,7 +1,7 @@
 {
   "name": "@codingcoffee/pi-readonly-ssh",
   "version": "0.2.1",
-  "description": "pi extension: expose an ssh_exec tool to the LLM for running allow-listed, read-only commands on remote hosts over SSH",
+  "description": "a pi extension for safely running allow-listed, read-only commands on remote hosts over SSH",
   "keywords": [
     "pi-package",
     "pi-extension",
@@ -35,7 +35,8 @@
   "pi": {
     "extensions": [
       "./index.ts"
-    ]
+    ],
+    "image": "https://pi-readonly-ssh.codingcoffee.dev/og.png"
   },
   "dependencies": {
     "shell-quote": "^1.8.1",
