@@ -60,11 +60,11 @@ export default function (pi: ExtensionAPI) {
 		const failures = runSelfTests(config);
 		if (failures.length > 0) {
 			ctx.ui.notify(
-				`readonly-ssh: ${failures.length} self-test failure(s). Check /ssh-reload output.`,
-				"error",
+				`readonly-ssh: ${failures.length} self-test failure(s) — a dangerous command may be slipping through your allowlist. Run /ssh-reload for details.`,
+				"warning",
 			);
 			for (const f of failures.slice(0, 5)) {
-				console.error(`[readonly-ssh] selftest: ${f}`);
+				console.warn(`[readonly-ssh] selftest: ${f}`);
 			}
 		}
 

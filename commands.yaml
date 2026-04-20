@@ -158,10 +158,17 @@ commands:
   # --- Network ---
   - name: ip
     subcommands: [addr, a, link, l, route, r, neigh, n, rule, maddr, tunnel]
+    # Block mutating sub-sub-commands (e.g. `ip link set eth0 down`,
+    # `ip route add ...`, `ip addr flush ...`).
+    banned_args_regex: ["^(add|del|delete|set|flush|change|replace|append|prepend)$"]
   - name: ifconfig
+    # ifconfig with 2+ positional args configures; reads are `ifconfig` or `ifconfig eth0`.
+    banned_args_regex: ["^(up|down|add|del|delete|netmask|broadcast|mtu|promisc|-promisc|arp|-arp)$"]
   - name: ss
   - name: netstat
   - name: route
+    # `route` with no args prints the table; any add/del/flush mutates.
+    banned_args_regex: ["^(add|del|delete|flush|change)$"]
   - name: arp
   - name: dig
     banned_flags: ["-f"]
@@ -299,14 +306,15 @@ commands:
       - show
       - branch
       - remote
-      - config
+      # NOTE: `config` is intentionally omitted — `git config <key> <value>`
+      # writes and is indistinguishable by flags from a read. Re-add it in
+      # your local commands.yaml if you accept the risk.
       - blame
       - ls-files
       - ls-tree
       - rev-parse
       - rev-list
       - describe
-      - tag
       - reflog
       - shortlog
       - whatchanged
