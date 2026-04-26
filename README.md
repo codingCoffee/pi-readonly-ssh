@@ -1,6 +1,6 @@
 # @codingcoffee/pi-readonly-ssh
 
-A [pi](https://github.com/mariozechner/pi) extension that exposes an `ssh_exec`
+A [pi](https://github.com/badlogic/pi-mono) extension that exposes an `ssh_exec`
 tool to the LLM for running **allow-listed, read-only** commands on remote
 hosts over SSH.
 
